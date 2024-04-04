@@ -3,6 +3,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
+import json
 
 import checks
 
@@ -123,6 +124,9 @@ def create_graph(model, graph_size):
             vars[(i, j)] = model.NewBoolVar('x' + str(i) + str(j))
     return vars
 
+def dump_graph(name, adj):
+    with open(f'{name}-graph.json', 'w') as f:
+        json.dump(adj.tolist(), f)
 
 def srg_solve(n=10, k=3, lam=0, mu=1):
     """
@@ -150,6 +154,7 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
 
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         adj = extract_adjacency_matrix(solver, vars, n)
+        dump_graph(f'srg({n},{k},{lam},{mu})', adj)
         # for (i, j, k) in l_vars:
         #     print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
         g = checks.adjacency_to_dict_rep(adj)
@@ -163,7 +168,7 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
 if __name__ == '__main__':
     # https://en.wikipedia.org/wiki/Strongly_regular_graph#Examples
 
-    # srg_solve(n=5, k=2, lam=0, mu=1) # Cycle of length 5                (0.0037381880028988235 solve)
+    srg_solve(n=5, k=2, lam=0, mu=1) # Cycle of length 5                (0.0037381880028988235 solve)
     # srg_solve(n=10, k=3, lam=0, mu=1) # Petersen graph                  (0.03033965499707847   solve)
     # srg_solve(n=16, k=5, lam=0, mu=2) # Clebsch graph                   (0.12465642600000137   solve)
     # srg_solve(n=16, k=6, lam=2, mu=2) # Shrikhande graph                (0.12621249299991177   solve)

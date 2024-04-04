@@ -155,8 +155,7 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         adj = extract_adjacency_matrix(solver, vars, n)
         dump_graph(f'srg({n},{k},{lam},{mu})', adj)
-        # for (i, j, k) in l_vars:
-        #     print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
+
         g = checks.adjacency_to_dict_rep(adj)
         assert checks.check_regular(g, k)
         assert checks.check_adjacent_regular(g, lam)
@@ -168,11 +167,12 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
 if __name__ == '__main__':
     # https://en.wikipedia.org/wiki/Strongly_regular_graph#Examples
 
-    srg_solve(n=5, k=2, lam=0, mu=1) # Cycle of length 5                (0.0037381880028988235 solve)
+    # srg_solve(n=5, k=2, lam=0, mu=1) # Cycle of length 5                (0.0037381880028988235 solve)
     # srg_solve(n=10, k=3, lam=0, mu=1) # Petersen graph                  (0.03033965499707847   solve)
     # srg_solve(n=16, k=5, lam=0, mu=2) # Clebsch graph                   (0.12465642600000137   solve)
     # srg_solve(n=16, k=6, lam=2, mu=2) # Shrikhande graph                (0.12621249299991177   solve)
     # srg_solve(n=28, k=12, lam=6, mu=4) # Chang graph                    (1.6211304169992218    solve)
     # srg_solve(n=27, k=16, lam=10, mu=8) # Schläfli graph                (5.6149721709989535    solve)
     # srg_solve(n=50, k=7, lam=0, mu=1) # Hoffman Singleton Graph
+    # srg_solve(n=99, k=14, lam=1, mu=2) # Conway 99-graph problem   https://en.wikipedia.org/wiki/Conway%27s_99-graph_problem
     pass

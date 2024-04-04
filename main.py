@@ -4,6 +4,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 
+import checks
+
 
 def order_small_big(x):
     (a, b) = x
@@ -79,6 +81,26 @@ def adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, lam):
 
         model.Add(common == lam).OnlyEnforceIf(ij_edge)
 
+def non_adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, mu):
+    """
+    Every two adjacent vertices have lambda common neighbors.
+    """
+    for (i, j) in vars:
+        # l = i_edges[k] * j_edges[k] trick via
+        # l <=> i_edges[k] AND j_edges[k]
+        ij_edge = vars[order_small_big((i, j))]
+
+        shared_edges = []
+        for k in range(n):
+            if k not in [i, j]:
+                l = common_neighbor_vars[(i, j, k)]
+
+                shared_edges.append(l)
+
+        common = sum(shared_edges)
+
+        model.Add(common == mu).OnlyEnforceIf(ij_edge.Not())
+
 def extract_adjacency_matrix(solver, vars, n):
     adj = np.zeros((n, n))
     for (i, j) in vars:
@@ -102,7 +124,13 @@ def create_graph(model, graph_size):
     return vars
 
 
-def example():
+def srg_solve(n=10, k=3, lam=0, mu=1):
+    """
+    - n: Number of vertices 
+    - k: Every vertex has k neighbors
+    - lam: Every two adjacent vertices have lam common neighbors
+    - mu: Every two non-adjacent vertices have mu common neighbors
+    """
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
 
@@ -115,6 +143,7 @@ def example():
     r_regularity_constraint(model, vars, n, k)
     common_neighbor_vars = make_common_neighbor_vars(model, vars, n)
     adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, lam)
+    non_adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, mu)
 
     solver.parameters.cp_model_probing_level=0
 
@@ -127,9 +156,13 @@ def example():
         adj = extract_adjacency_matrix(solver, vars, n)
         # for (i, j, k) in l_vars:
         #     print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
+        g = checks.adjacency_to_dict_rep(adj)
+        assert checks.check_regular(g, k)
+        assert checks.check_adjacent_regular(g, lam)
+        assert checks.check_non_adjacent_regular(g, mu, n)
         render_adjacency_matrix(adj)
     else:
         print("No solution found.")
 
 if __name__ == '__main__':
-    example()
+    srg_solve(n=10, k=3, lam=0, mu=1)

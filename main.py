@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 
 
-
 def order_small_big(x):
     (a, b) = x
     if a < b:
@@ -21,40 +20,91 @@ def r_regularity_constraint(model, vars, n, r):
                 edges.append(vars[order_small_big((i, j))])
         model.Add(sum(edges) == r)
 
+
+def get_edges(vars, from_vertex, n):
+    edges = []
+    for j in range(n):
+        if from_vertex != j:
+            edges.append(vars[order_small_big((from_vertex, j))])
+    return edges
+
+def and_constraint(model, a, b, c):
+    """
+    Adds a constraint that a AND b == c
+    
+    Trick From:
+    https://github.com/google/or-tools/blob/stable/ortools/sat/docs/boolean_logic.md#product-of-two-boolean-variables
+    """
+    model.AddBoolOr(a.Not(), b.Not(), c)
+    model.AddImplication(c, a)
+    model.AddImplication(c, b)
+
 def adjacent_regularity_constraint(model, vars, n, lam):
     """
     Every two adjacent vertices have lambda common neighbors.
     """
+    new_vars = {}
+    for (i, j) in vars:
+        # l = i_edges[k] * j_edges[k] trick via
+        # l <=> i_edges[k] AND j_edges[k]
+        ij_edge = vars[order_small_big((i, j))]
+
+        shared_edges = []
+        for k in range(n):
+            if k not in [i, j]:
+                l = model.NewBoolVar(f'l{i}{j}{k}') # l = i_edges[k] * j_edges[k]
+                new_vars[(i, j, k)] = l
+                ik_edge = vars[order_small_big((i, k))]
+                jk_edge = vars[order_small_big((j, k))]
+
+                and_constraint(model, ik_edge, jk_edge, l) # l <=> i_edges[k] AND j_edges[k]
+
+                shared_edges.append(l)
+
+        common = sum(shared_edges)
+        print(common)
+
+
+        model.Add(common == lam).OnlyEnforceIf(ij_edge)
+    return new_vars
+
 
 def extract_adjacency_matrix(solver, vars, n):
-    adj = [[0 for i in range(n)] for j in range(n)]
-    for (i,j) in vars:
-        adj[i][j] = solver.Value(vars[(i,j)])
-        adj[j][i] = solver.Value(vars[(i,j)])
-    
+    adj = np.zeros((n, n))
+    for (i, j) in vars:
+        adj[i][j] = solver.Value(vars[(i, j)])
+        adj[j][i] = solver.Value(vars[(i, j)])
+
     return np.array(adj)
+
 
 def render_adjacency_matrix(adjacency_matrix):
     gr = nx.from_numpy_array(adjacency_matrix)
-    nx.draw(gr, node_size=500)
+    nx.draw(gr, node_size=500, with_labels=True)
     plt.show()
+
 
 def create_graph(model, graph_size):
     vars = {}
     for i in range(graph_size):
         for j in range(i + 1, graph_size):
-            vars[(i, j)] = model.NewIntVar(0, 1, 'x' + str(i) + str(j))
+            vars[(i, j)] = model.NewBoolVar('x' + str(i) + str(j))
     return vars
+
 
 def example():
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
 
-    n = 99 # Number of vertices
-    r = 14 # Every vertex has 14 neighbors
+    n = 4  # Number of vertices
+    r = 2  # Every vertex has r neighbors
+    lam = 0 # Every two adjacent vertices have lam common neighbors
     vars = create_graph(model, n)
-    
+
     r_regularity_constraint(model, vars, n, r)
+    l_vars = adjacent_regularity_constraint(model, vars, n, lam)
+
+    solver.parameters.cp_model_probing_level=0
 
     start = timer()
     status = solver.Solve(model)
@@ -63,6 +113,8 @@ def example():
 
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         adj = extract_adjacency_matrix(solver, vars, n)
+        for (i, j, k) in l_vars:
+            print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
         render_adjacency_matrix(adj)
     else:
         print("No solution found.")

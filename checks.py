@@ -41,7 +41,6 @@ def check_non_adjacent_regular(g, lam, n):
         for j in g[i]:
             all.remove(j)
         all.remove(i)
-        print(i, all)
         for j in all:
             common = set(g[i]).intersection(set(g[j]))
             if len(common) != lam:

@@ -134,10 +134,6 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
 
-    n = 10  # Number of vertices
-    k = 3  # Every vertex has k neighbors
-    lam = 0 # Every two adjacent vertices have lam common neighbors
-    mu = 1  # Every two non-adjacent vertices have mu common neighbors
     vars = create_graph(model, n)
 
     r_regularity_constraint(model, vars, n, k)
@@ -165,4 +161,13 @@ def srg_solve(n=10, k=3, lam=0, mu=1):
         print("No solution found.")
 
 if __name__ == '__main__':
-    srg_solve(n=10, k=3, lam=0, mu=1)
+    # https://en.wikipedia.org/wiki/Strongly_regular_graph#Examples
+
+    # srg_solve(n=5, k=2, lam=0, mu=1) # Cycle of length 5                (0.0037381880028988235 solve)
+    # srg_solve(n=10, k=3, lam=0, mu=1) # Petersen graph                  (0.03033965499707847   solve)
+    # srg_solve(n=16, k=5, lam=0, mu=2) # Clebsch graph                   (0.12465642600000137   solve)
+    # srg_solve(n=16, k=6, lam=2, mu=2) # Shrikhande graph                (0.12621249299991177   solve)
+    # srg_solve(n=28, k=12, lam=6, mu=4) # Chang graph                    (1.6211304169992218    solve)
+    # srg_solve(n=27, k=16, lam=10, mu=8) # Schläfli graph                (5.6149721709989535    solve)
+    # srg_solve(n=50, k=7, lam=0, mu=1) # Hoffman Singleton Graph
+    pass

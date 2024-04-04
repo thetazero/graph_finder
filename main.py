@@ -39,11 +39,30 @@ def and_constraint(model, a, b, c):
     model.AddImplication(c, a)
     model.AddImplication(c, b)
 
-def adjacent_regularity_constraint(model, vars, n, lam):
+def make_common_neighbor_vars(model, vars, n):
+    """
+    Creates a new variable l(i, j, k) which is equal to 
+    l <=> i ~ k AND j ~ k
+    In other words, l is true iff i and j have a common neighbor k.
+    """
+    new_vars = {}
+    for (i, j) in vars:
+        for k in range(n):
+            if k not in [i, j]:
+                l = model.NewBoolVar(f'l{i}{j}{k}') 
+                new_vars[(i, j, k)] = l
+
+                ik_edge = vars[order_small_big((i, k))]
+                jk_edge = vars[order_small_big((j, k))]
+
+                and_constraint(model, ik_edge, jk_edge, l) # l <=> i_edges[k] AND j_edges[k]
+    return new_vars
+
+
+def adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, lam):
     """
     Every two adjacent vertices have lambda common neighbors.
     """
-    new_vars = {}
     for (i, j) in vars:
         # l = i_edges[k] * j_edges[k] trick via
         # l <=> i_edges[k] AND j_edges[k]
@@ -52,22 +71,13 @@ def adjacent_regularity_constraint(model, vars, n, lam):
         shared_edges = []
         for k in range(n):
             if k not in [i, j]:
-                l = model.NewBoolVar(f'l{i}{j}{k}') # l = i_edges[k] * j_edges[k]
-                new_vars[(i, j, k)] = l
-                ik_edge = vars[order_small_big((i, k))]
-                jk_edge = vars[order_small_big((j, k))]
-
-                and_constraint(model, ik_edge, jk_edge, l) # l <=> i_edges[k] AND j_edges[k]
+                l = common_neighbor_vars[(i, j, k)]
 
                 shared_edges.append(l)
 
         common = sum(shared_edges)
-        print(common)
-
 
         model.Add(common == lam).OnlyEnforceIf(ij_edge)
-    return new_vars
-
 
 def extract_adjacency_matrix(solver, vars, n):
     adj = np.zeros((n, n))
@@ -96,13 +106,15 @@ def example():
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
 
-    n = 4  # Number of vertices
-    r = 2  # Every vertex has r neighbors
+    n = 10  # Number of vertices
+    k = 3  # Every vertex has k neighbors
     lam = 0 # Every two adjacent vertices have lam common neighbors
+    mu = 1  # Every two non-adjacent vertices have mu common neighbors
     vars = create_graph(model, n)
 
-    r_regularity_constraint(model, vars, n, r)
-    l_vars = adjacent_regularity_constraint(model, vars, n, lam)
+    r_regularity_constraint(model, vars, n, k)
+    common_neighbor_vars = make_common_neighbor_vars(model, vars, n)
+    adjacent_regularity_constraint(model, vars, common_neighbor_vars, n, lam)
 
     solver.parameters.cp_model_probing_level=0
 
@@ -113,8 +125,8 @@ def example():
 
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
         adj = extract_adjacency_matrix(solver, vars, n)
-        for (i, j, k) in l_vars:
-            print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
+        # for (i, j, k) in l_vars:
+        #     print(f"l({i},{j},{k}) = {solver.Value(l_vars[(i, j, k)])}")
         render_adjacency_matrix(adj)
     else:
         print("No solution found.")
